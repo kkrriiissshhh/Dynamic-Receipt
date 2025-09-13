@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dynamic Receipt</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+    <style>
+        :root {
+            --primary-color: #4A90E2; --secondary-color: #6c757d;
+            --background-color: #f4f7fc; --border-color: #e0e5f1;
+            --text-color: #333d4b; --white-color: #ffffff;
+            --danger-color: #e53935; --receipt-text-color: #343a40;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Poppins', sans-serif; background-color: var(--background-color); color: var(--text-color); line-height: 1.6; padding: 20px; }
+        .container { max-width: 1500px; margin: 0 auto; display: grid; grid-template-columns: 480px 1fr; gap: 30px; }
+        .input-section { background-color: var(--white-color); padding: 30px; border-radius: 12px; box-shadow: 0 8px 25px rgba(0,0,0,0.05); }
+        .input-section h1 { font-weight: 600; color: var(--text-color); margin-bottom: 25px; border-bottom: 3px solid var(--primary-color); padding-bottom: 10px; font-size: 1.8rem; }
+        .form-group { margin-bottom: 18px; }
+        .form-group label { display: block; margin-bottom: 6px; font-weight: 500; font-size: 0.95rem; }
+        input, textarea, select { width: 100%; padding: 12px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 1rem; transition: border-color 0.3s, box-shadow 0.3s; }
+        input:focus, textarea:focus, select:focus { outline: none; border-color: var(--primary-color); box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.2); }
+        textarea { min-height: 80px; resize: vertical; }
+        fieldset { border: 1px solid var(--border-color); padding: 20px; border-radius: 8px; margin-top: 25px; }
+        legend { padding: 0 10px; font-weight: 500; color: var(--primary-color); }
+        .product-row { display: grid; grid-template-columns: 3fr 1fr 1.5fr 30px; gap: 10px; align-items: center; margin-bottom: 10px; }
+        .remove-btn { background: transparent; color: #e57373; border: none; font-size: 1.6rem; cursor: pointer; line-height: 1; transition: transform 0.2s; }
+        .remove-btn:hover { transform: scale(1.2); }
+        .btn { padding: 12px 24px; border: none; border-radius: 6px; font-size: 1.05rem; font-weight: 500; cursor: pointer; transition: all 0.3s; }
+        .btn-primary { background-color: var(--primary-color); color: var(--white-color); box-shadow: 0 4px 15px rgba(74, 144, 226, 0.2); }
+        .btn-primary:hover { background-color: #3a82d7; transform: translateY(-2px); box-shadow: 0 6px 20px rgba(74, 144, 226, 0.3); }
+        .btn-secondary { background-color: var(--secondary-color); color: var(--white-color); }
+        .btn-secondary:hover { background-color: #5a6268; }
+
+        /* New styles for logo upload */
+        .logo-upload-group { display: flex; align-items: center; gap: 10px; }
+        #remove-logo-btn { padding: 5px 10px; font-size: 0.8em; cursor: pointer; background: #eee; border: 1px solid #ddd; border-radius: 4px; display: none; }
+
+        #receipt-wrapper { background: #e9eef7; padding: 40px; border-radius: 12px; display: flex; align-items: flex-start; justify-content: center; }
+        #receipt-preview { background: var(--white-color); box-shadow: 0 10px 40px rgba(0,0,0,0.1); width: 210mm; min-height: 297mm; height: auto; padding: 35mm 20mm 20mm 20mm; font-size: 11pt; color: var(--receipt-text-color); display: flex; flex-direction: column; border-radius: 5px; }
+        .receipt-header { background: #f8f9fa; margin: -35mm -20mm 0 -20mm; padding: 35mm 20mm 25px 20mm; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: flex-start; }
+        
+        /* New logo style on receipt */
+        #receipt-logo { max-width: 150px; max-height: 80px; object-fit: contain; margin-bottom: 15px; display: none; }
+        
+        .company-details h2 { font-size: 2rem; font-weight: 600; color: #2c3e50; }
+        .company-details p { color: #7f8c8d; }
+        .receipt-info h1 { font-size: 3rem; font-weight: 700; color: #bdc3c7; letter-spacing: 2px; }
+        #receipt-serial-no { color: var(--danger-color); font-weight: 600; }
+        .receipt-info p { text-align: right; }
+        .receipt-body { flex-grow: 1; padding-top: 40px; }
+        .client-details { margin-bottom: 40px; }
+        .products-table table { width: 100%; border-collapse: collapse; }
+        .products-table th, .products-table td { padding: 14px; text-align: left; border-bottom: 1px solid #f0f2f5; }
+        .products-table th { font-weight: 500; color: #95a5a6; text-transform: uppercase; font-size: 0.9em;}
+        .products-table .text-right { text-align: right; }
+        .totals { margin-top: 30px; margin-left: auto; width: 45%; }
+        .totals-row { display: flex; justify-content: space-between; padding: 12px 0; align-items: center;}
+        .totals-row.grand-total { margin-top: 10px; padding: 10px 0; border-top: 2px solid var(--primary-color); }
+        .totals-row.grand-total span:first-child { font-weight: 600; font-size: 1.2em; color: var(--primary-color); }
+        #receipt-total { background: linear-gradient(45deg, #5dade2, #4A90E2); color: var(--white-color); padding: 8px 15px; border-radius: 6px; font-size: 1.4em; font-weight: 600; letter-spacing: 1px; box-shadow: 0 4px 15px rgba(74, 144, 226, 0.3); }
+        .receipt-footer { text-align: center; color: #95a5a6; margin-top: auto; padding-top: 40px; border-top: 1px solid #f0f2f5; }
+
+        @media (max-width: 1200px) {
+            .container { grid-template-columns: 1fr; }
+            #receipt-wrapper { padding: 10px; background: transparent; }
+            #receipt-preview { width: 100%; height: auto; min-height: 297mm; border-radius: 0; box-shadow: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Input Section -->
+        <section class="input-section">
+             <h1>Dynamic Receipt</h1>
+             <form id="receipt-form" onsubmit="return false;">
+                <fieldset><legend>Settings</legend><div class="form-group"><label for="currency">Currency</label><select id="currency"><option value="₹">Indian Rupee (₹)</option><option value="$">US Dollar ($)</option><option value="€">Euro (€)</option><option value="£">British Pound (£)</option></select></div></fieldset>
+                
+                <fieldset><legend>Company & Client</legend>
+                    <!-- NEW LOGO UPLOAD -->
+                    <div class="form-group">
+                        <label for="logo-upload">Company Logo (Optional)</label>
+                        <div class="logo-upload-group">
+                            <input type="file" id="logo-upload" accept="image/*">
+                            <button type="button" id="remove-logo-btn">Remove</button>
+                        </div>
+                    </div>
+                    <div class="form-group"><label for="company-name">Company Name</label><input type="text" id="company-name" placeholder="Your Company LLC"></div><div class="form-group"><label for="company-email">Company Email</label><input type="email" id="company-email" placeholder="contact@company.com"></div><div class="form-group"><label for="serial-no">Serial Number (Sl. No.)</label><input type="text" id="serial-no" placeholder="INV-0001"></div><div class="form-group"><label for="client-name">Client Name</label><input type="text" id="client-name" placeholder="Enter Client Name"></div><div class="form-group"><label for="client-address">Client Address</label><textarea id="client-address" placeholder="Enter Client Address"></textarea></div>
+                </fieldset>
+                
+                <fieldset><legend>Products</legend><div id="product-list"><div class="product-row"><input type="text" placeholder="Product Name"><input type="number" placeholder="Qty" value="1" min="1"><input type="number" placeholder="Price/Unit" min="0" step="0.01"><button type="button" class="remove-btn">&times;</button></div></div><button type="button" id="add-product-btn" class="btn btn-secondary" style="margin-top: 10px;">Add Product</button></fieldset>
+                <fieldset><legend>Options</legend><div class="form-group"><label for="gst">GST % (Optional)</label><input type="number" id="gst" placeholder="e.g., 18" min="0"></div><div class="form-group"><label for="discount">Discount % (Optional)</label><input type="number" id="discount" placeholder="e.g., 10" min="0"></div></fieldset>
+                <div class="action-buttons"><button type="button" id="download-btn" class="btn btn-primary">Download JPG</button></div>
+            </form>
+        </section>
+
+        <!-- Receipt Output Section -->
+        <section class="output-section" id="receipt-wrapper">
+            <div id="receipt-preview">
+                <header class="receipt-header">
+                    <div class="company-details">
+                        <!-- NEW LOGO DISPLAY -->
+                        <img id="receipt-logo" src="" alt="Company Logo">
+                        <h2 id="receipt-company-name">Company Name</h2><p id="receipt-company-email">contact@company.com</p>
+                    </div>
+                    <div class="receipt-info"><h1>RECEIPT</h1><p><strong>Sl. No. :</strong> <span id="receipt-serial-no">INV-0001</span></p><p><strong>Date:</strong> <span id="receipt-date">10/27/2023</span></p></div>
+                </header>
+                <main class="receipt-body">
+                    <section class="client-details"><p id="receipt-bill-to"><strong>Bill To:</strong> Name, Address</p></section>
+                    <section class="products-table"><table><thead><tr><th>#</th><th>Product</th><th class="text-right">Qty</th><th class="text-right">Price</th><th class="text-right">Total</th></tr></thead><tbody id="receipt-products-body"></tbody></table></section>
+                    <section class="totals">
+                        <div class="totals-row"><span>Subtotal</span><span id="receipt-subtotal">₹0.00</span></div><div class="totals-row" id="gst-row" style="display: none;"><span>GST (%)</span><span id="receipt-gst">₹0.00</span></div><div class="totals-row" id="discount-row" style="display: none;"><span>Discount (%)</span><span id="receipt-discount">₹0.00</span></div><div class="totals-row grand-total"><span>GRAND TOTAL</span><span id="receipt-total">₹0.00</span></div>
+                    </section>
+                </main>
+                <footer class="receipt-footer"><p>Thank you have a nice day!</p></footer>
+            </div>
+        </section>
+    </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const form = document.getElementById('receipt-form');
+        const productList = document.getElementById('product-list');
+        const addProductBtn = document.getElementById('add-product-btn');
+        const downloadBtn = document.getElementById('download-btn');
+        let productRowCount = 1;
+        // NEW Logo elements
+        const logoUpload = document.getElementById('logo-upload');
+        const receiptLogo = document.getElementById('receipt-logo');
+        const removeLogoBtn = document.getElementById('remove-logo-btn');
+
+        // Main function to update text content
+        const updateReceiptPreview = () => {
+            const currencySymbol = document.getElementById('currency').value;
+            document.getElementById('receipt-company-name').textContent = document.getElementById('company-name').value || 'Your Company LLC';
+            document.getElementById('receipt-company-email').textContent = document.getElementById('company-email').value || 'contact@company.com';
+            document.getElementById('receipt-serial-no').textContent = document.getElementById('serial-no').value || 'INV-0001';
+            const today = new Date();
+            document.getElementById('receipt-date').textContent = `${today.getMonth() + 1}/${today.getDate()}/${today.getFullYear()}`;
+            const clientName = document.getElementById('client-name').value || 'Name';
+            const clientAddress = (document.getElementById('client-address').value || 'Address').replace(/\n/g, ', ');
+            document.getElementById('receipt-bill-to').innerHTML = `<strong>Bill To:</strong> ${clientName}, ${clientAddress}`;
+
+            const productsBody = document.getElementById('receipt-products-body');
+            productsBody.innerHTML = ''; let subtotal = 0;
+            const productRows = productList.querySelectorAll('.product-row');
+            productRows.forEach((row, index) => {
+                const name = row.querySelector('input[placeholder*="Name"]').value;
+                const qty = parseFloat(row.querySelector('input[placeholder*="Qty"]').value) || 0;
+                const price = parseFloat(row.querySelector('input[placeholder*="Price"]').value) || 0;
+                const total = qty * price; subtotal += total;
+                if (name || qty || price) {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `<td>${index + 1}</td><td>${name || '-'}</td><td class="text-right">${qty}</td><td class="text-right">${price.toFixed(2)}</td><td class="text-right">${total.toFixed(2)}</td>`;
+                    productsBody.appendChild(tr);
+                }
+            });
+
+            const gstPercent = parseFloat(document.getElementById('gst').value) || 0;
+            const discountPercent = parseFloat(document.getElementById('discount').value) || 0;
+            const gstAmount = subtotal * (gstPercent / 100);
+            const discountAmount = subtotal * (discountPercent / 100);
+            const finalTotal = subtotal + gstAmount - discountAmount;
+            document.getElementById('receipt-subtotal').textContent = `${currencySymbol}${subtotal.toFixed(2)}`;
+            const gstRow = document.getElementById('gst-row');
+            if (gstPercent > 0) { gstRow.style.display = 'flex'; document.getElementById('receipt-gst').textContent = `${currencySymbol}${gstAmount.toFixed(2)} (${gstPercent}%)`; } else { gstRow.style.display = 'none'; }
+            const discountRow = document.getElementById('discount-row');
+            if (discountPercent > 0) { discountRow.style.display = 'flex'; document.getElementById('receipt-discount').textContent = `-${currencySymbol}${discountAmount.toFixed(2)} (${discountPercent}%)`; } else { discountRow.style.display = 'none'; }
+            document.getElementById('receipt-total').textContent = `${currencySymbol}${finalTotal.toFixed(2)}`;
+        };
+        
+        // --- NEW LOGO HANDLING LOGIC ---
+        logoUpload.addEventListener('change', function(event) {
+            if (event.target.files && event.target.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    receiptLogo.src = e.target.result;
+                    receiptLogo.style.display = 'block';
+                    removeLogoBtn.style.display = 'inline-block';
+                };
+                reader.readAsDataURL(event.target.files[0]);
+            }
+        });
+        removeLogoBtn.addEventListener('click', () => {
+            logoUpload.value = ''; // Reset file input
+            receiptLogo.src = '';
+            receiptLogo.style.display = 'none';
+            removeLogoBtn.style.display = 'none';
+        });
+
+        // Event listeners
+        productList.addEventListener('click', (e) => {
+            if (e.target.classList.contains('remove-btn')) {
+                if (productRowCount > 1) { e.target.closest('.product-row').remove(); productRowCount--; updateReceiptPreview(); } else { alert('You must have at least one product.'); }
+            }
+        });
+        
+        addProductBtn.addEventListener('click', () => {
+            if (productRowCount >= 10) { alert('You can add a maximum of 10 products.'); return; } productRowCount++;
+            const newRow = document.createElement('div');
+            newRow.classList.add('product-row');
+            newRow.innerHTML = `<input type="text" placeholder="Product Name"><input type="number" placeholder="Qty" value="1" min="1"><input type="number" placeholder="Price/Unit" min="0" step="0.01"><button type="button" class="remove-btn">&times;</button>`;
+            productList.appendChild(newRow);
+        });
+
+        form.addEventListener('input', updateReceiptPreview);
+        
+        downloadBtn.addEventListener('click', () => {
+            const receiptElement = document.getElementById('receipt-preview');
+            const serialNo = document.getElementById('serial-no').value || '0001';
+            const filename = `Receipt-${serialNo}.jpg`;
+            html2canvas(receiptElement, { scale: 2.5, useCORS: true }).then(canvas => {
+                const link = document.createElement('a');
+                link.href = canvas.toDataURL('image/jpeg', 0.95);
+                link.download = filename;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            });
+        });
+
+        updateReceiptPreview();
+    });
+</script>
+</body>
+</html>
